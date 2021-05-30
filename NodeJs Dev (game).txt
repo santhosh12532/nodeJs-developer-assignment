@@ -1,0 +1,245 @@
+const express = require("express");
+const { open } = require("sqlite");
+const sqlite3 = require("sqlite3");
+const path = require("path");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+
+const databasePath = path.join(__dirname, "userData.db");
+
+const app = express();
+
+app.use(express.json());
+
+let database = null;
+
+const initializeDbAndServer = async () => {
+  try {
+    database = await open({
+      filename: databasePath,
+      driver: sqlite3.Database,
+    });
+
+    app.listen(3000, () =>
+      console.log("Server Running at http://localhost:3000/")
+    );
+  } catch (error) {
+    console.log(`DB Error: ${error.message}`);
+    process.exit(1);
+  }
+};
+initializeDbAndServer();
+
+function authenticateToken(request, response, next) {
+  let jwtToken;
+  const authHeader = request.headers["authorization"];
+  if (authHeader !== undefined) {
+    jwtToken = authHeader.split(" ")[1];
+  }
+  if (jwtToken === undefined) {
+    response.status(401);
+    response.send("Invalid JWT Token");
+  } else {
+    jwt.verify(jwtToken, "MY_SECRET_TOKEN", async (error, payload) => {
+      if (error) {
+        response.status(401);
+        response.send("Invalid JWT Token");
+      } else {
+        next();
+      }
+    });
+  }
+}
+
+app.post("/register/", async (request, response) => {
+  const { name, age, location, emailid, phoneNumber, password } = request.body;
+  const selectQuery = `SELECT * FROM user WHERE name = '${name}'`;
+  const dbSelectedQuery = await database.get(selectQuery);
+  console.log(dbSelectedQuery);
+  if (dbSelectedQuery !== undefined) {
+    response.status(400);
+    response.send("User already exists");
+  } else {
+    const postQuery = `INSERT INTO user (name,age,location,emailid ,phoneNumber,password)
+          VALUES ('${name}','${age}','${location}','${emailid}','${phoneNumber}','${password}');`;
+    await database.run(postQuery);
+    console.log("success");
+    response.status(200);
+    response.send("User created successfully");
+  }
+});
+
+app.post("/login/", async (request, response) => {
+  const { name, phoneNumber } = request.body;
+  console.log(name);
+  const selectUserQuery = `SELECT * FROM user WHERE name = '${name}';`;
+  const databaseUser = await database.get(selectUserQuery);
+  console.log(databaseUser);
+  if (databaseUser === undefined) {
+    response.status(400);
+    response.send("Invalid user");
+  } else {
+    const isPhNumMatched = phoneNumber === databaseUser.phoneNumber;
+    if (isPhNumMatched === true) {
+      console.log("matched");
+      const payload = {
+        name: name,
+      };
+      const jwtToken = jwt.sign(payload, "MY_SECRET_TOKEN");
+      response.send({ jwtToken });
+      console.log(jwtToken);
+    } else {
+      response.status(400);
+      response.send("Invalid password");
+    }
+  }
+});
+
+//games data
+
+app.get("/games", authenticateToken, async (request, response) => {
+  const selectUserQuery = `SELECT * FROM gamesData;`;
+  let dbResponse = await database.all(selectUserQuery);
+  response.status(200);
+  response.send(dbResponse);
+});
+
+//details by admin
+
+app.post("/admin/", authenticateToken, async (request, response) => {
+  const { u1Id, u2Id, scoreU1, scoreU2, win, gameId } = request.body;
+  try {
+    const postGameDetails = `INSERT INTO gameResults (u1Id, u2Id, scoreU1, scoreU2, win, gameId)
+    VALUES('${u1Id}','${u2Id}','${scoreU1}','${scoreU2}','${win}','${gameId}');`;
+    await database.run(postGameDetails);
+    response.status(200);
+    response.send("Game Results Updated");
+  } catch (e) {
+    response.status(400);
+    response.send("Db Error");
+  }
+});
+
+//update Details
+
+app.put("/update/", authenticateToken, async (request, response) => {
+  const { name, age, location, emailid, password } = request.body;
+  let jwtToken;
+  let name2 = "";
+  const authHeader = request.headers["authorization"];
+  if (authHeader !== undefined) {
+    jwtToken = authHeader.split(" ")[1];
+  }
+  jwt.verify(jwtToken, "MY_SECRET_TOKEN", async (error, payload) => {
+    const { name } = payload;
+    name2 = name;
+  });
+  console.log(name2);
+  try {
+    const updateQuery = `UPDATE user SET 
+                name='${name}',
+                age='${age}',
+                location='${location}',
+                emailid = '${emailid}',
+                password = '${password}' WHERE name='${name2}'`;
+
+    let dbResponse = await database.run(updateQuery);
+    response.status(200);
+    response.send("User Details Updated Successfully");
+  } catch (error) {
+    response.status(400);
+    response.send("Database Error :" + error.message);
+  }
+});
+
+module.exports = app;
+
+
+
+
+
+
+
+POST http://localhost:3000/register/
+Content-Type: application/json
+
+{
+  "name": "manchivarusanthoshkumar",
+  "age": 25,
+  "location":"Hyderabad",
+  "emailid": "manchivarusanthoshkumar@gmail.com",
+  "phoneNumber": 987654321,
+  "password":"12532"
+}
+
+###
+POST http://localhost:3000/login/
+Content-Type: application/json
+
+{
+    "name":"santhosh",
+    "phoneNumber":987654321
+}
+
+###
+GET http://localhost:3000/games
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoibWFuY2hpdmFydXNhbnRob3Noa3VtYXIiLCJpYXQiOjE2MjIyOTU1OTl9.gkGAxJrInSMsRfJ34Ax0I28RG7T8yTCMFY25s6ubQUg
+
+###
+POST http://localhost:3000/admin
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoibWFuY2hpdmFydXNhbnRob3Noa3VtYXIiLCJpYXQiOjE2MjIyOTU1OTl9.gkGAxJrInSMsRfJ34Ax0I28RG7T8yTCMFY25s6ubQUg
+Content-Type: application/json
+
+{
+    "u1Id":1,
+     "u2Id":2, 
+     "scoreU1":30, 
+     "scoreU2":40, 
+     "win":"false", 
+     "gameId":1
+}
+
+
+###
+PUT http://localhost:3000/update
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoibWFuY2hpdmFydXNhbnRob3Noa3VtYXIiLCJpYXQiOjE2MjIzNjA4MDR9.23mSmVIO66qx7Z6ITOZfFYqRydcVmDnf3Xr7zOZT198
+Content-Type: application/json
+
+{
+ "name":"santhosh",
+  "age": 25,
+  "location":"Hyderabad",
+  "emailid": "manchivarusanthoshkumar@gmail.com",
+  "password":"12532"
+}
+
+
+DataBase--------------------------------------------------------------------------------------------------------------------------------------
+create table user("name" text, "age" int,"location" text,"emailid" text,"phoneNumber" int,"password" text);
+sqlite> .tables
+user
+sqlite> create table gamesData("name" text,"id" int);
+sqlite> .tables
+gamesData  user     
+sqlite> insert into gamesData values(game1,1);
+Error: no such column: game1
+sqlite> insert into gamesData values("game1",1);
+sqlite> insert into gamesData values("game2",2);
+sqlite> insert into gamesData values("game3",3);
+sqlite> .tables
+gamesData  user     
+sqlite> select * from gamesData
+   ...> ;
+game1|1
+game2|2
+game3|3
+sqlite> create table gameResults("u1Id" int,"u2Id" int,"scoreU1" int,"scoreU2" int,"win" text,"gameId" int);
+sqlite> 
+
+
+
+
+
+
+
+

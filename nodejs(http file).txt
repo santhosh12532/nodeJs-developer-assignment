@@ -1,0 +1,54 @@
+
+POST http://localhost:3000/register/
+Content-Type: application/json
+
+{
+  "name": "manchivarusanthoshkumar",
+  "age": 25,
+  "location":"Hyderabad",
+  "emailid": "manchivarusanthoshkumar@gmail.com",
+  "phoneNumber": 987654321,
+  "password":"12532"
+}
+
+###
+POST http://localhost:3000/login/
+Content-Type: application/json
+
+{
+    "name":"santhosh",
+    "phoneNumber":987654321
+}
+
+###
+GET http://localhost:3000/games
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoibWFuY2hpdmFydXNhbnRob3Noa3VtYXIiLCJpYXQiOjE2MjIyOTU1OTl9.gkGAxJrInSMsRfJ34Ax0I28RG7T8yTCMFY25s6ubQUg
+
+###
+POST http://localhost:3000/admin
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoibWFuY2hpdmFydXNhbnRob3Noa3VtYXIiLCJpYXQiOjE2MjIyOTU1OTl9.gkGAxJrInSMsRfJ34Ax0I28RG7T8yTCMFY25s6ubQUg
+Content-Type: application/json
+
+{
+    "u1Id":1,
+     "u2Id":2, 
+     "scoreU1":30, 
+     "scoreU2":40, 
+     "win":"false", 
+     "gameId":1
+}
+
+
+###
+PUT http://localhost:3000/update
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoibWFuY2hpdmFydXNhbnRob3Noa3VtYXIiLCJpYXQiOjE2MjIzNjA4MDR9.23mSmVIO66qx7Z6ITOZfFYqRydcVmDnf3Xr7zOZT198
+Content-Type: application/json
+
+{
+ "name":"santhosh",
+  "age": 25,
+  "location":"Hyderabad",
+  "emailid": "manchivarusanthoshkumar@gmail.com",
+  "password":"12532"
+}
+
